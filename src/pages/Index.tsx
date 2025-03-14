@@ -215,6 +215,29 @@ const Index = () => {
     }
   };
 
+  // Format analysis results for export
+  const formatResultsForExport = (results: AnalysisResult[]) => {
+    // Group results by category
+    const categorizedResults: Record<string, AnalysisResult[]> = {};
+    
+    // Initialize all categories with empty arrays
+    Object.keys(categoryMapping).forEach(tab => {
+      const categoryLabel = categoryMapping[tab];
+      categorizedResults[categoryLabel] = [];
+    });
+    
+    // Populate with actual results
+    results.forEach(result => {
+      const category = result.label;
+      if (!categorizedResults[category]) {
+        categorizedResults[category] = [];
+      }
+      categorizedResults[category].push(result);
+    });
+    
+    return categorizedResults;
+  };
+
   // Updated ReportSection component integrated directly
   const FormattedReportSection = ({ title, description, items }: { 
     title: string, 
@@ -316,7 +339,8 @@ const Index = () => {
     </div>
   );
 
-  const LoadingComponent = () => (
+
+      const LoadingComponent = () => (
     <div className="p-8 text-center">
       <div className="relative pt-1">
         <div className="flex mb-2 items-center justify-between">
@@ -409,6 +433,97 @@ const Index = () => {
 
   const activeSection = getActiveItems();
 
+  // Function to generate a formatted HTML export of all results
+  const generateExportHTML = () => {
+    const categorizedResults = formatResultsForExport(analysisResults);
+    
+    // Create HTML sections for each category
+    let sectionsHTML = '';
+    Object.entries(categoryMapping).forEach(([tabKey, categoryLabel]) => {
+      const results = analysisResults.filter(result => 
+        result.label.toLowerCase() === categoryLabel.toLowerCase()
+      );
+      
+      if (results.length > 0) {
+        sectionsHTML += `
+          <div style="margin-bottom: 20px; page-break-inside: avoid;">
+            <h2 style="color: #2563eb; margin-bottom: 10px;">${categoryLabel}</h2>
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+              ${results.map(item => `
+                <div style="padding: 15px; border-bottom: 1px solid #e5e7eb;">
+                  <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    ${item.confidence !== 'N/A' ? 
+                      `<span style="
+                        padding: 4px 8px; 
+                        font-size: 12px; 
+                        font-weight: 600; 
+                        border-radius: 9999px; 
+                        margin-right: 8px;
+                        background-color: ${
+                          item.confidence === 'High' ? '#dcfce7; color: #166534' : 
+                          item.confidence === 'Medium' ? '#fef9c3; color: #854d0e' : 
+                          '#fee2e2; color: #991b1b'
+                        };">
+                        ${item.confidence}
+                      </span>` : 
+                      ''
+                    }
+                    <h3 style="font-weight: 500;">${item.label}</h3>
+                  </div>
+                  <div style="font-size: 14px; line-height: 1.5;">
+                    ${formatResponse(item.response)}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div style="margin-top: 10px; font-size: 14px;">
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    return `
+      <!DOCTYPE html>
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+      <head>
+        <meta charset="utf-8">
+        <title>UX Evaluation Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 8px; }
+          h2 { color: #2563eb; }
+          .header { margin-bottom: 30px; }
+          .report-meta { color: #6b7280; font-size: 14px; }
+          .section { margin-bottom: 30px; page-break-inside: avoid; }
+          @page { size: A4; margin: 2cm; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>UX Evaluation Report</h1>
+          <div class="report-meta">
+            <p>Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+          </div>
+        </div>
+        
+        <div class="analyzed-image">
+          <h2>Analyzed UI</h2>
+          <p>The image analysis was conducted on the uploaded UI screenshot.</p>
+        </div>
+        
+        <h2>Analysis Results</h2>
+        ${sectionsHTML}
+        
+        <div class="section">
+          <h2>Summary</h2>
+          <p>This report provides a comprehensive analysis of the UI design across multiple dimensions including visual design, UX laws, cognitive load, psychological effects, and Gestalt principles.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   return (
     <div className="min-h-screen pb-20 bg-gray-100">
       {showNotification && (
@@ -457,9 +572,9 @@ const Index = () => {
           </div>
         ) : (
           <>
-            <div className="mb-6 flex justify-between items-center">
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-center">
               <ReportHeader projectName="UX Evaluation Report" />
-              <div>
+              <div className="flex flex-col sm:flex-row mt-4 sm:mt-0 space-y-3 sm:space-y-0 sm:space-x-4">
                 <button
                   onClick={() => {
                     setAnalyzeStarted(false);
@@ -472,47 +587,25 @@ const Index = () => {
                   Upload New Image
                 </button>
                 
-                    <button
-      onClick={() => {
-        const exportData = {
-          title: "UX Evaluation Report",
-          date: new Date().toLocaleDateString(),
-          results: analysisResults,
-          feedback: feedbackStatus
-        };
-        
-        // Create a simple HTML representation of the data
-        const htmlContent = `
-          <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
-          <head>
-            <meta charset="utf-8">
-            <title>UX Evaluation Report</title>
-          </head>
-          <body>
-            <h1>UX Evaluation Report</h1>
-            <p>Date: ${exportData.date}</p>
-            <h2>Analysis Results</h2>
-            <div>${JSON.stringify(exportData.results, null, 2)}</div>
-            <h2>Feedback</h2>
-            <div>${JSON.stringify(exportData.feedback, null, 2)}</div>
-          </body>
-          </html>
-        `;
-        
-        // Use application/msword as MIME type for Word documents
-        const blob = new Blob([htmlContent], { type: 'application/msword' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ux-evaluation-report.doc';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }}
-      className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-400"
-    >
-      Export
-    </button>
+                <button
+                  onClick={() => {
+                    // Generate full HTML content with all sections and feedback
+                    const htmlContent = generateExportHTML();
+                    
+                    // Use application/msword as MIME type for Word documents
+                    const blob = new Blob([htmlContent], { type: 'application/msword' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'ux-evaluation-report.doc';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-400"
+                >
+                  Export
+                </button>
               </div>
             </div>
             
