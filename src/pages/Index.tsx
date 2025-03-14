@@ -13,7 +13,7 @@ interface AnalysisResult {
 
 const Index = () => {
   // Backend URL - updated to use the render deployment
-  const BACKEND_URL = "https://ui-feed-backend-2.onrender.com";
+  const BACKEND_URL = "https://ui-feed-backend-4.onrender.com";
   
   const [activeTab, setActiveTab] = useState("visual");
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
