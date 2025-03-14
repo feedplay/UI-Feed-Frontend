@@ -26,7 +26,6 @@ const Index = () => {
   const [preprocessingDone, setPreprocessingDone] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<Record<string, string | null>>({});
   const [showNotification, setShowNotification] = useState<{message: string, type: string} | null>(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Map tab names to their corresponding category labels
   const categoryMapping: Record<string, string> = {
@@ -37,28 +36,7 @@ const Index = () => {
     "gestalt": "Gestalt Design Analysis"
   };
 
-  // Add this useEffect to detect screen size changes
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const checkServerStatus = async () => {
-      try {
-        await axios.get(`${BACKEND_URL}/health`, { timeout: 5000 });
-        console.log("✅ Backend server is running");
-      } catch (error) {
-        console.error("⚠️ Backend server may be initializing or unavailable:", error);
-        setError("The analysis server may be initializing. First analysis might take longer than usual.");
-      }
-    };
-    
-    checkServerStatus();
     fetchAnalysisResults();
   }, []);
 
@@ -84,10 +62,7 @@ const Index = () => {
   const fetchAnalysisResults = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${BACKEND_URL}/analyze`, {
-        withCredentials: true,  // Send cookies
-        timeout: 10000          // 10 second timeout
-      });
+      const response = await axios.get(`${BACKEND_URL}/analyze`);
       console.log("Fetched Analysis Results:", response.data);
       
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
@@ -116,18 +91,11 @@ const Index = () => {
       // Start preprocessing right after upload
       const formData = new FormData();
       formData.append("image", file);
-      formData.append("isMobile", isMobile.toString());  // Add mobile flag
       
       try {
         // Send to preprocessing endpoint
         console.log("Starting preprocessing...");
-        const response = await axios.post(`${BACKEND_URL}/preprocess`, formData, {
-          withCredentials: true,  // Send cookies
-          timeout: 20000,         // 20 second timeout
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        const response = await axios.post(`${BACKEND_URL}/preprocess`, formData);
         console.log("Preprocessing complete:", response.data);
         setPreprocessingDone(true);
       } catch (error) {
@@ -162,24 +130,13 @@ const Index = () => {
       if (preprocessingDone) {
         // If we already preprocessed, just get the results
         console.log("Using preprocessed results...");
-        response = await axios.get(`${BACKEND_URL}/analyze`, {
-          withCredentials: true,  // Important! Send cookies with the request
-          timeout: 30000          // 30 second timeout
-        });
+        response = await axios.get(`${BACKEND_URL}/analyze`);
       } else {
         // Otherwise do the full analysis
         console.log("Submitting image for analysis...");
         const formData = new FormData();
         formData.append("image", uploadedImage);
-        formData.append("isMobile", isMobile.toString());  // Add mobile flag
-        
-        response = await axios.post(`${BACKEND_URL}/analyze`, formData, {
-          withCredentials: true,  // Important! Send cookies with the request
-          timeout: 30000,         // 30 second timeout
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        response = await axios.post(`${BACKEND_URL}/analyze`, formData);
       }
       
       clearInterval(progressInterval);
@@ -198,20 +155,9 @@ const Index = () => {
     } catch (error) {
       clearInterval(progressInterval);
       console.error("Error analyzing image:", error);
-      
-      // Enhanced error handling
-      if (error.code === 'ERR_NETWORK' || error.response?.status === 502) {
-        setError("Server is temporarily unavailable. The analysis server may be restarting. Please try again in a few moments.");
-      } else if (error.response?.status === 413) {
-        setError("Image file is too large. Please resize or compress the image and try again.");
-      } else if (error.code === 'ECONNABORTED') {
-        setError("Analysis timeout. The server took too long to respond. Please try a less complex image.");
-      } else {
-        setError("Failed to analyze image. Please try again later.");
-      }
-      
-      setLoadingProgress(0);
-      setLoading(false);
+      setError("Failed to analyze image. Please try again.");
+    } finally {
+      // Loading state will be set to false by the useEffect when progress reaches 100%
     }
   };
 
@@ -499,17 +445,7 @@ const Index = () => {
               {loading ? "Analyzing..." : preprocessingDone ? "Analyze UI (Ready)" : "Analyze UI"}
             </button>
 
-            {error && (
-              <div className="text-red-500 mt-2">
-                <p>{error}</p>
-                <button
-                  onClick={() => handleAnalyze()}
-                  className="mt-2 px-4 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
-                >
-                  Retry Analysis
-                </button>
-              </div>
-            )}
+            {error && <p className="text-red-500 mt-2">{error}</p>}
           </div>
         ) : (
           <>
