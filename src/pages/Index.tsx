@@ -36,6 +36,14 @@ const Index = () => {
     "gestalt": "Gestalt Design Analysis"
   };
 
+  // Add the navigation handler function
+  const handleNavigateBack = () => {
+    // Your custom navigation logic here
+    // For example with react-router:
+    // navigate(-1);
+    console.log("Navigate back action triggered");
+  };
+
   useEffect(() => {
     fetchAnalysisResults();
   }, []);
@@ -308,7 +316,6 @@ const Index = () => {
     </div>
   );
 
-  // Enhanced Loading Component
   const LoadingComponent = () => (
     <div className="p-8 text-center">
       <div className="relative pt-1">
@@ -404,10 +411,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen pb-20 bg-gray-100">
-      <Header />
       {showNotification && (
         <Notification message={showNotification.message} type={showNotification.type} />
       )}
+      
+      
       <main className="container max-w-4xl pt-6 mx-auto">
         {!analyzeStarted ? (
           <div className="flex flex-col items-center justify-center p-6 border rounded-lg shadow-md bg-white">
@@ -464,28 +472,47 @@ const Index = () => {
                   Upload New Image
                 </button>
                 
-                <button
-                  onClick={() => {
-                    const exportData = {
-                      title: "UX Evaluation Report",
-                      date: new Date().toLocaleDateString(),
-                      results: analysisResults,
-                      feedback: feedbackStatus
-                    };
-                    
-                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'ux-evaluation-report.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                  }}
-                  className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-400"
-                >
-                  Export
-                </button>
+                    <button
+      onClick={() => {
+        const exportData = {
+          title: "UX Evaluation Report",
+          date: new Date().toLocaleDateString(),
+          results: analysisResults,
+          feedback: feedbackStatus
+        };
+        
+        // Create a simple HTML representation of the data
+        const htmlContent = `
+          <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+          <head>
+            <meta charset="utf-8">
+            <title>UX Evaluation Report</title>
+          </head>
+          <body>
+            <h1>UX Evaluation Report</h1>
+            <p>Date: ${exportData.date}</p>
+            <h2>Analysis Results</h2>
+            <div>${JSON.stringify(exportData.results, null, 2)}</div>
+            <h2>Feedback</h2>
+            <div>${JSON.stringify(exportData.feedback, null, 2)}</div>
+          </body>
+          </html>
+        `;
+        
+        // Use application/msword as MIME type for Word documents
+        const blob = new Blob([htmlContent], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ux-evaluation-report.doc';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }}
+      className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-400"
+    >
+      Export
+    </button>
               </div>
             </div>
             
